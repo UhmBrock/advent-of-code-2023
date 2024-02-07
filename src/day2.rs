@@ -20,11 +20,27 @@ pub fn part_1(inputFile: Option<&str>) {
     }
   }
 
-  println!("Possible Game ID Sum: {}", possibleGameIdSum);
+  println!("Day 2 Part 1: {}", possibleGameIdSum);
 
 }
 
+pub fn part_2(inputFile: Option<&str>) {
+  let inputFile = inputFile.unwrap_or("./inputs/day2part1.txt");
 
+  let mut powerSum = 0;
+
+  if let Ok(lines) = file_utils::read_lines(inputFile) {
+    for line in lines.flatten() {
+      let round = GameRound::from_str(line.as_str()).unwrap();
+
+      let minSet = round.get_max_shown();
+
+      powerSum += minSet.blue * minSet.red * minSet.green;
+    }
+  }
+
+  println!("Day 2 Part 2: {}", powerSum);
+}
 
 #[derive(Debug)]
 struct GameRound {
@@ -68,8 +84,12 @@ impl GameRound {
 
     return maxSet;
   }
+}
 
-
+impl Default for GameRound {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FromStr for GameRound {
@@ -106,6 +126,12 @@ impl GameSet {
   fn new() -> Self {
     GameSet { green: 0, red: 0, blue: 0 }
   }
+}
+
+impl Default for GameSet {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FromStr for GameSet {
