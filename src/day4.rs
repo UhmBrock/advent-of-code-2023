@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::{fs, result};
+use std::fs;
 use std::str::FromStr;
 use std::string::ParseError;
 
@@ -10,8 +10,6 @@ struct Card {
   revealedNumbers: Vec<i32>,
   matchingNumbers: Vec<i32>,
   resultingCards: Vec<i32>,
-  totalResultingCards: i32,
-  solved: bool
 }
 
 impl Card {
@@ -87,7 +85,7 @@ fn get_points_sum(cards: HashMap<i32, Card>) -> i32 {
 
   let mut sum = 0;
 
-  for (id, card) in cards {
+  for (_id, card) in cards {
     sum += card.getPoints();
   }
 
@@ -108,12 +106,12 @@ pub fn part_2() {
   let inputFile = "./inputs/day4part1.txt";
   let contents = fs::read_to_string(inputFile).expect("File should exist");
 
-  let mut cards = get_cards(contents);
+  let cards = get_cards(contents);
 
   let mut total_card_count = cards.len() as i32;
 
   let mut cards_won = vec![];
-  for (id, card) in cards.iter() {
+  for (_id, card) in cards.iter() {
     for resultCard in card.resultingCards.iter() {
       cards_won.push(resultCard);
     }

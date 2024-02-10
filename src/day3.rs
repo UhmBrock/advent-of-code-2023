@@ -25,7 +25,7 @@ pub fn part_1(inputFile: Option<&str>) {
 pub fn part_2(inputFile: Option<&str>) {
   let inputFile = inputFile.unwrap_or("./inputs/day3part1.txt");
   let contents = fs::read_to_string(inputFile).expect("File should exist");
-  let schematic = EngineSchematic::from_str(contents.as_str()).unwrap();
+  let _schematic = EngineSchematic::from_str(contents.as_str()).unwrap();
 
 }
 
@@ -157,24 +157,13 @@ impl EngineSchematic {
     return false;
   }
 
+  #[allow(dead_code)]
   fn get_all_gears(self: &Self) -> Vec<&EngineComponent> {
-
-    let mut gears: Vec<&EngineComponent> = vec![];
-
-    for col in &self.components {
-      for component in col {        
-        
-        if component.is_gear() {
-          gears.push(component);
-        }
-
-      }
-    }
-
-    return gears;
+    todo!()
   }
 
-  fn component_is_gear(self: &Self, component: &EngineComponent) -> bool {
+  #[allow(dead_code)]
+  fn component_is_gear(self: &Self, _component: &EngineComponent) -> bool {
 
     todo!()
 
@@ -235,12 +224,12 @@ impl EngineComponent {
     }
   }
 
-  fn is_gear(self: &Self) -> bool {
-    match self.value.borrow() {
-      '*' => true,
-      &_ => false
-    }
-  }
+  // fn is_gear(self: &Self) -> bool {
+  //   match self.value.borrow() {
+  //     '*' => true,
+  //     &_ => false
+  //   }
+  // }
 
   fn is_possible_part(self: &Self) -> bool {
     self.value.is_numeric()
