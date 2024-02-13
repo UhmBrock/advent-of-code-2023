@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-use std::rc::Rc;
 use std::string::ParseError;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -162,25 +160,24 @@ pub fn part_2() {
   let temperature_to_humidity_maps: Vec<Map> = temperature_to_humidity.lines().map(|str| Map::from_str(str).unwrap() ).collect();
   let humidity_to_location_maps: Vec<Map> = humidity_to_location.lines().map(|str| Map::from_str(str).unwrap() ).collect();
 
-  let mut overall_min_seed_location = Arc::new(Mutex::new((u64::MAX, u64::MAX)));
+  let overall_min_seed_location = Arc::new(Mutex::new((u64::MAX, u64::MAX)));
 
   let mut handles: Vec<JoinHandle<()>> = vec![];
   let mut maxLocationChecked = 0;
   
-  for _ in 0..8 {
+for _ in 0..8 {
 
     let nextLocationRange = maxLocationChecked..maxLocationChecked+100_000_000;
     maxLocationChecked += 100_000_000;
 
     println!("Creating thread for {} to {}", nextLocationRange.start, nextLocationRange.end);
 
-    let mut handle = thread::spawn({
+    let handle = thread::spawn({
 
       let overall_min_seed_location = Arc::clone(&overall_min_seed_location);
       let locationRange = nextLocationRange.clone();
       let seed_ranges = seed_ranges.clone();
 
-      let seed_mapper = Mapper::new(vec![], seed_to_soil_maps.clone());
       let soil_mapper = Mapper::new(seed_to_soil_maps.clone(), soil_to_fertilizer_maps.clone());
       let fertilizer_mapper = Mapper::new(soil_to_fertilizer_maps.clone(), fertilizer_to_water_maps.clone());
       let water_mapper = Mapper::new(fertilizer_to_water_maps.clone(), water_to_light_maps.clone());
@@ -191,8 +188,6 @@ pub fn part_2() {
 
       move || {
       
-        let mut min_seed_location: (u64, u64) = (u64::MAX, u64::MAX);
-
         for location in locationRange {
           
           let humidity = _location_mapper.prev(location);
@@ -215,16 +210,11 @@ pub fn part_2() {
           if seedFound == false {
             continue;
           }
-          
-          if location % 1_000_000 == 0 {
-            eprintln!("Hit location: {}", location);
-          }
 
           let mut min_seed_location = overall_min_seed_location.lock().unwrap();
           if location < min_seed_location.1 {
             *min_seed_location = (seed, location);
             eprintln!("Found new minimum location: {:?}", min_seed_location);
-            eprintln!("{} : {} : {} : {} : {} : {} : {} : {} ", seed, soil, fertilizer, water, light, temperature, humidity, location);
           }      
         }
       }
