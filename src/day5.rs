@@ -170,8 +170,6 @@ for _ in 0..8 {
     let nextLocationRange = maxLocationChecked..maxLocationChecked+100_000_000;
     maxLocationChecked += 100_000_000;
 
-    println!("Creating thread for {} to {}", nextLocationRange.start, nextLocationRange.end);
-
     let handle = thread::spawn({
 
       let overall_min_seed_location = Arc::clone(&overall_min_seed_location);
@@ -214,7 +212,6 @@ for _ in 0..8 {
           let mut min_seed_location = overall_min_seed_location.lock().unwrap();
           if location < min_seed_location.1 {
             *min_seed_location = (seed, location);
-            eprintln!("Found new minimum location: {:?}", min_seed_location);
           }      
         }
       }
