@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+use std::rc::Rc;
 use std::string::ParseError;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -20,8 +22,8 @@ impl FromStr for Map {
       let sourceStart = parts.next().unwrap().trim().parse::<u64>().unwrap();
       let length = parts.next().unwrap().trim().parse::<u64>().unwrap();
      
-      let destinationEnd = destinationStart + length + 1;
-      let sourceEnd = sourceStart + length + 1;
+      let destinationEnd = destinationStart + length;
+      let sourceEnd = sourceStart + length;
 
       let new_map = Map {
         destination_range: destinationStart..destinationEnd,
@@ -47,11 +49,11 @@ impl Mapper {
     }
   }
   
-  #[allow(dead_code)]
   fn prev(self: &Self, value: u64) -> u64 {
     // TODO better choose which map to use
     for map in self.prevMaps.iter() {
       if map.destination_range.contains(&value) {
+
         let destinationOffset = value - map.destination_range.start;
         return map.source_range.start + destinationOffset;
       }
@@ -132,7 +134,16 @@ pub fn part_2() {
   
   let contents = fs::read_to_string(inputFile).expect("File should exist");
 
-  let seed_string = contents.split("\r\n\r\n").next().unwrap().split(':').last().unwrap().trim();
+  let mut parts = contents.split("\r\n\r\n");
+
+  let seed_string = parts.next().unwrap().split(':').last().unwrap().trim();
+  let seed_to_soil = parts.next().unwrap().split(':').last().unwrap().trim();
+  let soil_to_fertilizer = parts.next().unwrap().split(':').last().unwrap().trim();
+  let fertilizer_to_water = parts.next().unwrap().split(':').last().unwrap().trim();
+  let water_to_light = parts.next().unwrap().split(':').last().unwrap().trim();
+  let light_to_temperature = parts.next().unwrap().split(':').last().unwrap().trim();
+  let temperature_to_humidity = parts.next().unwrap().split(':').last().unwrap().trim();
+  let humidity_to_location = parts.next().unwrap().split(':').last().unwrap().trim();
   
   let seeds: Vec<u64> = seed_string.split_whitespace().map(|s| s.parse::<u64>().unwrap()).collect();
 
@@ -143,37 +154,32 @@ pub fn part_2() {
     }
   }
 
-  println!("{:?}", seed_ranges);
+  let seed_to_soil_maps: Vec<Map> = seed_to_soil.lines().map(|str| Map::from_str(str).unwrap() ).collect();
+  let soil_to_fertilizer_maps: Vec<Map> = soil_to_fertilizer.lines().map(|str| Map::from_str(str).unwrap() ).collect();
+  let fertilizer_to_water_maps: Vec<Map> = fertilizer_to_water.lines().map(|str| Map::from_str(str).unwrap() ).collect();
+  let water_to_light_maps: Vec<Map> = water_to_light.lines().map(|str| Map::from_str(str).unwrap() ).collect();
+  let light_to_temperature_maps: Vec<Map> = light_to_temperature.lines().map(|str| Map::from_str(str).unwrap() ).collect();
+  let temperature_to_humidity_maps: Vec<Map> = temperature_to_humidity.lines().map(|str| Map::from_str(str).unwrap() ).collect();
+  let humidity_to_location_maps: Vec<Map> = humidity_to_location.lines().map(|str| Map::from_str(str).unwrap() ).collect();
 
-  let mut parts = contents.split("\r\n\r\n");
+  let mut overall_min_seed_location = Arc::new(Mutex::new((u64::MAX, u64::MAX)));
 
-  let seed_to_soil = parts.next().unwrap().split(':').last().unwrap().trim();
-  let soil_to_fertilizer = parts.next().unwrap().split(':').last().unwrap().trim();
-  let fertilizer_to_water = parts.next().unwrap().split(':').last().unwrap().trim();
-  let water_to_light = parts.next().unwrap().split(':').last().unwrap().trim();
-  let light_to_temperature = parts.next().unwrap().split(':').last().unwrap().trim();
-  let temperature_to_humidity = parts.next().unwrap().split(':').last().unwrap().trim();
-  let humidity_to_location = parts.next().unwrap().split(':').last().unwrap().trim();
+  let mut handles: Vec<JoinHandle<()>> = vec![];
+  let mut maxLocationChecked = 0;
   
+  for _ in 0..8 {
 
+    let nextLocationRange = maxLocationChecked..maxLocationChecked+100_000_000;
+    maxLocationChecked += 100_000_000;
 
+    println!("Creating thread for {} to {}", nextLocationRange.start, nextLocationRange.end);
 
+    let mut handle = thread::spawn({
 
-  let mut overall_min_seed_location = (u64::MAX, u64::MAX);
+      let overall_min_seed_location = Arc::clone(&overall_min_seed_location);
+      let locationRange = nextLocationRange.clone();
+      let seed_ranges = seed_ranges.clone();
 
-  let handles: Vec<JoinHandle<(u64, u64)>> = seed_ranges.into_iter().map(|seedRange| {
-    thread::spawn({
-  
-      let seedRange = seedRange.clone();
-
-      let seed_to_soil_maps: Vec<Map> = seed_to_soil.lines().map(|str| Map::from_str(str).unwrap() ).collect();
-      let soil_to_fertilizer_maps: Vec<Map> = soil_to_fertilizer.lines().map(|str| Map::from_str(str).unwrap() ).collect();
-      let fertilizer_to_water_maps: Vec<Map> = fertilizer_to_water.lines().map(|str| Map::from_str(str).unwrap() ).collect();
-      let water_to_light_maps: Vec<Map> = water_to_light.lines().map(|str| Map::from_str(str).unwrap() ).collect();
-      let light_to_temperature_maps: Vec<Map> = light_to_temperature.lines().map(|str| Map::from_str(str).unwrap() ).collect();
-      let temperature_to_humidity_maps: Vec<Map> = temperature_to_humidity.lines().map(|str| Map::from_str(str).unwrap() ).collect();
-      let humidity_to_location_maps: Vec<Map> = humidity_to_location.lines().map(|str| Map::from_str(str).unwrap() ).collect();
-      
       let seed_mapper = Mapper::new(vec![], seed_to_soil_maps.clone());
       let soil_mapper = Mapper::new(seed_to_soil_maps.clone(), soil_to_fertilizer_maps.clone());
       let fertilizer_mapper = Mapper::new(soil_to_fertilizer_maps.clone(), fertilizer_to_water_maps.clone());
@@ -185,43 +191,53 @@ pub fn part_2() {
 
       move || {
       
-        eprintln!("Solving for {} to {}", seedRange.start, seedRange.end);
-
         let mut min_seed_location: (u64, u64) = (u64::MAX, u64::MAX);
 
-        for seed in seedRange {
+        for location in locationRange {
           
-          let soil = seed_mapper.next(seed);
-          let fertilizer = soil_mapper.next(soil);
-          let water = fertilizer_mapper.next(fertilizer);
-          let light = water_mapper.next(water);
-          let temperature = light_mapper.next(light);
-          let humidity = temperature_mapper.next(temperature);
-          let location = humidity_mapper.next(humidity);
-          
-          if seed % 100_000_000 == 0 {
-            eprintln!("Hit seed: {}", seed);
+          let humidity = _location_mapper.prev(location);
+          let temperature = humidity_mapper.prev(humidity);
+          let light = temperature_mapper.prev(temperature);
+          let water = light_mapper.prev(light);
+          let fertilizer = water_mapper.prev(water);
+          let soil = fertilizer_mapper.prev(fertilizer);
+          let seed = soil_mapper.prev(soil);
+
+          let mut seedFound = false;
+
+          for seed_range in seed_ranges.iter() {
+            if seed_range.contains(&seed) {
+              seedFound = true;
+              break;
+            }
           }
 
+          if seedFound == false {
+            continue;
+          }
+          
+          if location % 1_000_000 == 0 {
+            eprintln!("Hit location: {}", location);
+          }
+
+          let mut min_seed_location = overall_min_seed_location.lock().unwrap();
           if location < min_seed_location.1 {
-            min_seed_location = (seed, location);
+            *min_seed_location = (seed, location);
             eprintln!("Found new minimum location: {:?}", min_seed_location);
+            eprintln!("{} : {} : {} : {} : {} : {} : {} : {} ", seed, soil, fertilizer, water, light, temperature, humidity, location);
           }      
         }
-
-        return min_seed_location;
       }
-    })
-  }).collect();
+    });
 
+    handles.push(handle);
+
+  }
+  
   for handle in handles {
-    let resulting_min = handle.join().unwrap();
-
-    if resulting_min.1 < overall_min_seed_location.1 {
-      overall_min_seed_location = resulting_min.clone();
-    }
+    handle.join().unwrap();
   }
 
-  println!("Day 5 Part 2: {}", overall_min_seed_location.1);
+  println!("Day 5 Part 2: {:?}", overall_min_seed_location.lock().unwrap());
 
 }
