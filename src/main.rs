@@ -26,10 +26,11 @@ fn main() {
   handles.push(as_thread(day5::part_2));
   day6::part_1(None);
   day6::part_2(None);
+  day7::part_1(None);
 
   println!("=====================================");
-  
-  day7::part_1(None);
+
+  day7::part_2(None);
 
   if false {
       for handle in handles {

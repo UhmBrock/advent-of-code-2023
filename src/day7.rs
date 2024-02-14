@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cmp, collections::{HashMap, HashSet}, fs, str::FromStr, string::ParseError};
+use std::{cmp, collections::HashMap, fs, str::FromStr, string::ParseError};
 #[derive(Debug)]
 struct Card {
   label: String,
@@ -14,16 +14,16 @@ impl FromStr for Card {
         "A" => Card { label: s.to_string(), strength: 13 },
         "K" => Card { label: s.to_string(), strength: 12 },
         "Q" => Card { label: s.to_string(), strength: 11 },
-        "J" => Card { label: s.to_string(), strength: 10 },
-        "T" => Card { label: s.to_string(), strength: 9 },
-        "9" => Card { label: s.to_string(), strength: 8 },
-        "8" => Card { label: s.to_string(), strength: 7 },
-        "7" => Card { label: s.to_string(), strength: 6 },
-        "6" => Card { label: s.to_string(), strength: 5 },
-        "5" => Card { label: s.to_string(), strength: 4 },
-        "4" => Card { label: s.to_string(), strength: 3 },
-        "3" => Card { label: s.to_string(), strength: 2 },
-        "2" => Card { label: s.to_string(), strength: 1 },
+        "T" => Card { label: s.to_string(), strength: 10 },
+        "9" => Card { label: s.to_string(), strength: 9 },
+        "8" => Card { label: s.to_string(), strength: 8 },
+        "7" => Card { label: s.to_string(), strength: 7 },
+        "6" => Card { label: s.to_string(), strength: 6 },
+        "5" => Card { label: s.to_string(), strength: 5 },
+        "4" => Card { label: s.to_string(), strength: 4 },
+        "3" => Card { label: s.to_string(), strength: 3 },
+        "2" => Card { label: s.to_string(), strength: 2 },
+        "J" => Card { label: s.to_string(), strength: 1 },
         _ => panic!("Unhandled card")
       };
 
@@ -32,27 +32,28 @@ impl FromStr for Card {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct HandType {
   label: String,
   strength: i32
 }
 
 #[derive(Debug)]
-struct Hand {
+struct Hand<const WILDCARD_ACTIVE: bool> {
   cards: Vec<Card>,
   bid: i32,
   handType: HandType
 }
 
-impl Eq for Hand {}
+impl<const WILDCARD_ACTIVE: bool> Eq for Hand<WILDCARD_ACTIVE> {}
 
-impl PartialEq for Hand {
+impl<const WILDCARD_ACTIVE: bool> PartialEq for Hand<WILDCARD_ACTIVE> {
   fn eq(&self, other: &Self) -> bool {
     self.handType.strength == other.handType.strength && self.cards.iter().map(|c| &c.strength).eq(other.cards.iter().map(|c| &c.strength))
   }
 }
 
-impl PartialOrd for Hand {
+impl<const WILDCARD_ACTIVE: bool> PartialOrd for Hand<WILDCARD_ACTIVE> {
   fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
 
     if self.handType.strength == other.handType.strength {
@@ -69,7 +70,7 @@ impl PartialOrd for Hand {
   }
 }
 
-impl Ord for Hand {
+impl<const WILDCARD_ACTIVE: bool> Ord for Hand<WILDCARD_ACTIVE> {
   fn cmp(&self, other: &Self) -> cmp::Ordering {
 
     if self.handType.strength == other.handType.strength {
@@ -86,7 +87,7 @@ impl Ord for Hand {
   }
 }
 
-impl Hand {
+impl Hand<false> {
   fn get_hand_type(cards: &Vec<Card>) -> HandType {
     
     let mut cardHash = HashMap::new();
@@ -153,7 +154,98 @@ impl Hand {
   }
 }
 
-impl FromStr for Hand {
+impl Hand<true> {
+  fn get_hand_type(cards: &Vec<Card>) -> HandType {
+    
+    let mut cardHash = HashMap::new();
+
+    let mut jokerCount = 0;
+
+    for card in cards.iter() {
+      
+      if card.label == "J" {
+        jokerCount += 1;
+        continue;
+      } 
+
+      *cardHash.entry(&card.label).or_insert(0) += 1;
+    }
+
+    if jokerCount >= 5 || *cardHash.values().max().unwrap() >= (5 - jokerCount) {
+      return HandType {
+        label: "Five of a kind".into(),
+        strength: 7
+      };
+    }
+    
+    if *cardHash.values().max().unwrap() >= (4 - jokerCount) {
+      return HandType {
+        label: "Four of a kind".into(),
+        strength: 6
+      };
+    }
+
+    // Jokers turn a two pair into a full house, any other combo becomes a four of a kind
+    if jokerCount == 1 && *cardHash.values().max().unwrap() == 2 {
+      let mut pairs_found = 0;
+      for card in cardHash.iter() {
+        if *card.1 >= 2 {
+          pairs_found += 1;
+        }
+      }
+
+      if pairs_found == 2 {
+        return HandType {
+          label: "Full house".into(),
+          strength: 5
+        };
+      }
+    } else if *cardHash.values().max().unwrap() == 3 && cardHash.values().find(|v| **v == 2).is_some() {
+      return HandType {
+        label: "Full house".into(),
+        strength: 5
+      };
+    }
+
+    if *cardHash.values().max().unwrap() >= (3 - jokerCount) {
+      return HandType {
+        label: "Three of a kind".into(),
+        strength: 4
+      };
+    }
+
+    // Jokers don't affect two pair, it would just become a three of a kind
+    if *cardHash.values().max().unwrap() == 2 {
+      let mut pairs_found = 0;
+      for card in cardHash.iter() {
+        if *card.1 >= 2 {
+          pairs_found += 1;
+        }
+      }
+
+      if pairs_found == 2 {
+        return HandType {
+          label: "Two pair".into(),
+          strength: 3
+        };
+      }
+    }
+
+    if *cardHash.values().max().unwrap() >= (2 - jokerCount) {
+      return HandType {
+        label: "One pair".into(),
+        strength: 2
+      };
+    }
+
+    HandType {
+      label: "High card".into(),
+      strength: 1
+    }
+  }
+}
+
+impl<const WILDCARD_ACTIVE: bool> FromStr for Hand<WILDCARD_ACTIVE> {
   type Err = ParseError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -164,7 +256,11 @@ impl FromStr for Hand {
 
     let cards: Vec<Card> = hand.chars().map(|c| Card::from_str(&c.to_string()).unwrap()).collect();
 
-    let handType = Hand::get_hand_type(&cards);
+    let handType = if WILDCARD_ACTIVE {
+      Hand::<true>::get_hand_type(&cards)
+    } else {
+      Hand::<false>::get_hand_type(&cards)
+    };
 
     Ok(Hand {
       cards,
@@ -179,7 +275,7 @@ pub fn part_1(inputFile: Option<&str>) {
   
   let contents = fs::read_to_string(inputFile).expect("File should exist");
 
-  let mut hands = vec![];
+  let mut hands: Vec<Hand<false>> = vec![];
 
   for line in contents.lines() {
     let hand = Hand::from_str(line).unwrap();
@@ -201,7 +297,21 @@ pub fn part_2(inputFile: Option<&str>) {
 
   let contents = fs::read_to_string(inputFile).expect("File should exist");
   
-  println!("Day 7 Part 2: ");
+  let mut hands: Vec<Hand<true>> = vec![];
+
+  for line in contents.lines() {
+    let hand = Hand::from_str(line).unwrap();
+    hands.push(hand);
+  }
+
+  hands.sort();
+
+  let mut totalWinnings = 0;
+
+  for (index, hand) in hands.iter().enumerate() {
+    totalWinnings += (index+1) as i32 * hand.bid;    
+  }
+  println!("Day 7 Part 2: {}", totalWinnings);
 }
 
 
@@ -224,6 +334,6 @@ mod tests {
 
     part_2(Some(inputFile));
 
-    // should print 71503
+    // should print 5905
   }
 }
