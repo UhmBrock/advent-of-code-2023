@@ -10,6 +10,7 @@ pub mod day4;
 pub mod day5;
 pub mod day6;
 pub mod day7;
+pub mod day8;
 
 fn main() {
 
@@ -23,14 +24,16 @@ fn main() {
   day4::part_1(); 
   handles.push(as_thread(day4::part_2));
   day5::part_1();
-  handles.push(as_thread(day5::part_2));
+  // handles.push(as_thread(day5::part_2));
   day6::part_1(None);
   day6::part_2(None);
   day7::part_1(None);
+  day7::part_2(None);
+  day8::part_1(None);
+  day8::part_2(None);
 
   println!("=====================================");
 
-  day7::part_2(None);
 
   if false {
       for handle in handles {
